@@ -1,27 +1,31 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
-
-interface Task {
-  id: string;
-  title: string;
-  date: Date;
-  duration: number;
-  stress: "low" | "medium" | "high";
-  type: string;
-}
+import { Task } from "@/types/calendar";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 
 interface CalendarViewProps {
   tasks: Task[];
   onTaskClick?: (task: Task) => void;
+  onTasksChange?: (tasks: Task[]) => void;
 }
 
-export const CalendarView = ({ tasks, onTaskClick }: CalendarViewProps) => {
+export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarViewProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const weekStart = startOfWeek(currentDate);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  const {
+    draggedTask,
+    handleDragStart,
+    handleDragEnd,
+    handleDragOver,
+    handleDrop,
+    isDragOverSlot,
+  } = useDragAndDrop(tasks, onTasksChange || (() => {}));
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -113,21 +117,49 @@ export const CalendarView = ({ tasks, onTaskClick }: CalendarViewProps) => {
                   return (
                     <div
                       key={`${day.toISOString()}-${hour}`}
-                      className="min-h-16 p-1 border-r border-b border-border last:border-r-0 hover:bg-muted/50 transition-colors"
+                      className={`min-h-16 p-1 border-r border-b border-border last:border-r-0 transition-colors ${
+                        isDragOverSlot(day, hour)
+                          ? "bg-primary/10 border-primary"
+                          : "hover:bg-muted/50"
+                      }`}
+                      onDragOver={(e) => handleDragOver(e, day, hour)}
+                      onDrop={(e) => handleDrop(e, day, hour)}
                     >
                       {dayTasks.map((task) => (
-                        <button
+                        <div
                           key={task.id}
+                          draggable={!!onTasksChange}
+                          onDragStart={() => handleDragStart(task)}
+                          onDragEnd={handleDragEnd}
                           onClick={() => onTaskClick?.(task)}
-                          className={`w-full text-left p-2 rounded-md text-xs font-medium mb-1 border transition-all ${getStressColor(
+                          className={`group w-full text-left p-2 rounded-md text-xs font-medium mb-1 border transition-all cursor-move ${getStressColor(
                             task.stress
-                          )}`}
+                          )} ${
+                            draggedTask?.id === task.id
+                              ? "opacity-50 scale-95"
+                              : "hover:scale-105 hover:shadow-md animate-fade-in"
+                          }`}
                         >
-                          <div className="font-semibold truncate">
-                            {task.title}
+                          <div className="flex items-start gap-1">
+                            {onTasksChange && (
+                              <GripVertical className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold truncate">
+                                {task.title}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] px-1 py-0"
+                                >
+                                  {task.duration}h
+                                </Badge>
+                                <span className="text-xs opacity-75">{task.type}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-xs opacity-75">{task.type}</div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   );

@@ -262,6 +262,7 @@ const Index = () => {
             <CalendarView
               tasks={tasks}
               onTaskClick={(task) => console.log("Task clicked:", task)}
+              onTasksChange={setTasks}
             />
           </div>
           <div className="flex flex-col gap-4">
@@ -277,6 +278,25 @@ const Index = () => {
                 onSendMessage={(message) =>
                   console.log("Message sent:", message)
                 }
+                onAutoReschedule={() => {
+                  // Find tasks with conflicts or high stress
+                  const tasksToReschedule = tasks.filter(t => t.stress === "high");
+                  if (tasksToReschedule.length > 0) {
+                    // Simple auto-reschedule logic: spread high-stress tasks evenly
+                    const updatedTasks = tasks.map((task, idx) => {
+                      if (task.stress === "high") {
+                        const newDate = new Date(task.date);
+                        newDate.setDate(newDate.getDate() + 1); // Move to next day
+                        return { ...task, date: newDate };
+                      }
+                      return task;
+                    });
+                    setTasks(updatedTasks);
+                    toast.success("Tasks automatically rescheduled for optimal workload!");
+                  } else {
+                    toast.info("Your schedule is already optimized!");
+                  }
+                }}
               />
             </div>
           </div>

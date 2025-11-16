@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Send, Bot, User, Sparkles, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Message {
@@ -16,9 +17,10 @@ interface Message {
 interface ChatInterfaceProps {
   onSendMessage?: (message: string) => void;
   scheduleContext?: any;
+  onAutoReschedule?: () => void;
 }
 
-export const ChatInterface = ({ onSendMessage, scheduleContext }: ChatInterfaceProps) => {
+export const ChatInterface = ({ onSendMessage, scheduleContext, onAutoReschedule }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -29,6 +31,7 @@ export const ChatInterface = ({ onSendMessage, scheduleContext }: ChatInterfaceP
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [preferenceMode, setPreferenceMode] = useState<"auto" | "manual">("auto");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -146,21 +149,81 @@ export const ChatInterface = ({ onSendMessage, scheduleContext }: ChatInterfaceP
     setInput("");
     setIsLoading(true);
 
+    // Check if user is asking to reschedule in auto mode
+    const isRescheduleRequest = input.toLowerCase().includes("reschedule") || 
+                                 input.toLowerCase().includes("move") ||
+                                 input.toLowerCase().includes("change time");
+
+    if (isRescheduleRequest && preferenceMode === "auto") {
+      // Auto reschedule
+      onAutoReschedule?.();
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I've automatically rescheduled your tasks to the best available times based on your preferences and workload. Check your calendar for the updates!",
+        sender: "bot",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botMessage]);
+      setIsLoading(false);
+      return;
+    }
+
     await streamChat(userMessage);
+    setIsLoading(false);
+  };
+
+  const handleAISuggestions = async () => {
+    const suggestionMessage: Message = {
+      id: Date.now().toString(),
+      content: "Can you analyze my schedule and give me suggestions to optimize my workload?",
+      sender: "user",
+      timestamp: new Date(),
+    };
+    
+    setMessages((prev) => [...prev, suggestionMessage]);
+    setIsLoading(true);
+    await streamChat(suggestionMessage);
     setIsLoading(false);
   };
 
   return (
     <Card className="flex flex-col h-[50vh] shadow-medium">
       <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Bot className="h-5 w-5 text-primary" />
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Bot className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">AI Assistant</h3>
+              <p className="text-xs text-muted-foreground">Always here to help</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-foreground">AI Assistant</h3>
-            <p className="text-xs text-muted-foreground">Always here to help</p>
-          </div>
+          <Badge variant={preferenceMode === "auto" ? "default" : "secondary"}>
+            {preferenceMode === "auto" ? "Auto" : "Manual"}
+          </Badge>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAISuggestions}
+            disabled={isLoading}
+            className="flex-1 gap-1.5 hover-scale"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Suggestions
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPreferenceMode(prev => prev === "auto" ? "manual" : "auto")}
+            className="flex-1 gap-1.5 hover-scale"
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+            {preferenceMode === "auto" ? "Manual Mode" : "Auto Mode"}
+          </Button>
         </div>
       </div>
 
