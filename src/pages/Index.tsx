@@ -3,8 +3,11 @@ import { CalendarView } from "@/components/Calendar/CalendarView";
 import { StressIndicator } from "@/components/Calendar/StressIndicator";
 import { ChatInterface } from "@/components/Chat/ChatInterface";
 import { OnboardingFlow, UserPreferences } from "@/components/Onboarding/OnboardingFlow";
+import { AddEventDialog } from "@/components/Calendar/AddEventDialog";
 import { Button } from "@/components/ui/button";
-import { Calendar, Settings } from "lucide-react";
+import { Calendar, Settings, Plus } from "lucide-react";
+import { addDays, addHours, setHours } from "date-fns";
+import { toast } from "sonner";
 
 // Sample data for demonstration
 const sampleTasks = [
@@ -54,6 +57,7 @@ const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [tasks, setTasks] = useState(sampleTasks);
+  const [showAddEvent, setShowAddEvent] = useState(false);
 
   useEffect(() => {
     // Check if user has completed onboarding
@@ -80,11 +84,82 @@ const Index = () => {
     );
   };
 
+  const handleAddEvent = (
+    event: any,
+    subtasks: Array<{ title: string; duration: number; order: number }>
+  ) => {
+    // Determine stress level based on priority and due date
+    const getStressLevel = (priority: string): "low" | "medium" | "high" => {
+      if (priority === "high") return "high";
+      if (priority === "medium") return "medium";
+      return "low";
+    };
+
+    // Find available time slots based on user preferences
+    const findNextAvailableSlot = (startDate: Date, durationHours: number) => {
+      // Start from tomorrow at 9 AM
+      let currentSlot = setHours(addDays(new Date(), 1), 9);
+      
+      // Check if slot conflicts with existing tasks
+      const hasConflict = (date: Date, duration: number) => {
+        return tasks.some((task) => {
+          const taskEnd = addHours(task.date, task.duration);
+          const slotEnd = addHours(date, duration);
+          return (
+            date < taskEnd &&
+            slotEnd > task.date &&
+            date.toDateString() === task.date.toDateString()
+          );
+        });
+      };
+
+      // Find next available slot
+      while (hasConflict(currentSlot, durationHours)) {
+        currentSlot = addHours(currentSlot, 1);
+        // If we reach end of day (9 PM), move to next day at 9 AM
+        if (currentSlot.getHours() >= 21) {
+          currentSlot = setHours(addDays(currentSlot, 1), 9);
+        }
+      }
+
+      return currentSlot;
+    };
+
+    // Create tasks from subtasks
+    const newTasks = subtasks.map((subtask, index) => {
+      const taskDate = findNextAvailableSlot(
+        index === 0 ? new Date() : tasks[tasks.length - 1]?.date || new Date(),
+        subtask.duration
+      );
+
+      return {
+        id: `${Date.now()}-${index}`,
+        title: `${event.title}: ${subtask.title}`,
+        date: taskDate,
+        duration: subtask.duration,
+        stress: getStressLevel(event.priority),
+        type: event.type.charAt(0).toUpperCase() + event.type.slice(1),
+      };
+    });
+
+    setTasks([...tasks, ...newTasks]);
+    
+    toast.success("Tasks scheduled!", {
+      description: `${newTasks.length} subtasks have been intelligently scheduled based on your calendar availability.`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {showOnboarding && (
         <OnboardingFlow onComplete={handleOnboardingComplete} />
       )}
+
+      <AddEventDialog
+        open={showAddEvent}
+        onOpenChange={setShowAddEvent}
+        onAddEvent={handleAddEvent}
+      />
 
       <header className="border-b border-border bg-card shadow-soft">
         <div className="container mx-auto px-4 py-4">
@@ -102,13 +177,22 @@ const Index = () => {
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setShowOnboarding(true)}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowAddEvent(true)}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Event
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowOnboarding(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
