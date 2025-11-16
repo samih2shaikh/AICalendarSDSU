@@ -1,9 +1,5 @@
 # Welcome to our AI Calendar for SDSU project
 
-## Project info
-
-**URL**: https://lovable.dev/projects/eebd7a91-4fd9-46a9-809d-ad3d55d5f816
-
 ## How can I edit this code?
 
 
