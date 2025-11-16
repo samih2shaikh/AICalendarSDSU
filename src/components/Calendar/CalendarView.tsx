@@ -123,19 +123,21 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
                   return (
                     <div
                       key={`${day.toISOString()}-${hour}`}
-                      className={`min-h-16 p-1 border-r border-b border-border last:border-r-0 transition-colors ${
+                      className={`relative min-h-16 p-1 border-r border-b border-border last:border-r-0 transition-colors overflow-visible ${
                         isDragOverSlot(day, hour)
                           ? "bg-primary/10 border-primary"
                           : "hover:bg-muted/50"
                       }`}
                       onDragOver={(e) => handleDragOver(e, day, hour)}
                       onDrop={(e) => handleDrop(e, day, hour)}
+                      style={{ overflow: 'visible' }}
                     >
                       {dayTasks.map((task) => {
                         // Only render the task in the slot where it starts
                         if (!isTaskStart(task, hour)) return null;
                         
-                        const taskHeight = task.duration * 64; // 64px = min-h-16
+                        // Calculate height: 64px per hour minus padding
+                        const taskHeight = task.duration * 64 - 8;
                         
                         return (
                           <div
@@ -144,8 +146,11 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
                             onDragStart={() => handleDragStart(task)}
                             onDragEnd={handleDragEnd}
                             onClick={() => onTaskClick?.(task)}
-                            style={{ minHeight: `${taskHeight}px` }}
-                            className={`group w-full text-left p-2 rounded-md text-xs font-medium mb-1 border transition-all cursor-pointer ${getStressColor(
+                            style={{ 
+                              height: `${taskHeight}px`,
+                              zIndex: 10
+                            }}
+                            className={`group w-full text-left p-2 rounded-md text-xs font-medium border transition-all cursor-pointer overflow-hidden ${getStressColor(
                               task.stress
                             )} ${
                               draggedTask?.id === task.id
@@ -153,7 +158,7 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
                                 : "hover:scale-105 hover:shadow-md animate-fade-in"
                             }`}
                           >
-                            <div className="flex items-start gap-1">
+                            <div className="flex items-start gap-1 h-full">
                               {onTasksChange && (
                                 <GripVertical className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-move" />
                               )}
