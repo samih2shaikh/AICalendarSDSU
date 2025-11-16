@@ -169,6 +169,41 @@ export const StressIndicator = ({
                 </div>
               </div>
             )}
+
+            {metrics.workLifeBalance && (
+              <div className="pt-3 mt-3 border-t border-border">
+                <h5 className="text-xs font-medium text-muted-foreground mb-2">Work-Life Balance</h5>
+                <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                  <div className="bg-primary/10 p-2 rounded">
+                    <p className="text-muted-foreground">Work</p>
+                    <p className="font-semibold text-foreground">{metrics.workLifeBalance.workHours}h</p>
+                  </div>
+                  <div className="bg-success/10 p-2 rounded">
+                    <p className="text-muted-foreground">Personal</p>
+                    <p className="font-semibold text-foreground">{metrics.workLifeBalance.personalHours}h</p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Balance Score</span>
+                    <span className="font-semibold">{Math.round(metrics.workLifeBalance.balanceScore)}%</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-1.5">
+                    <div 
+                      className={`h-1.5 rounded-full transition-all ${
+                        metrics.workLifeBalance.balanceScore > 50 
+                          ? "bg-success" 
+                          : "bg-warning"
+                      }`}
+                      style={{ width: `${Math.min(100, metrics.workLifeBalance.balanceScore)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground italic mt-1">
+                    {metrics.workLifeBalance.suggestion}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

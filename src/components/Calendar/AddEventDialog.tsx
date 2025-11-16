@@ -13,10 +13,12 @@ import { z } from "zod";
 
 const eventSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(100, "Title must be less than 100 characters"),
-  type: z.enum(["assignment", "study", "project", "exam", "meeting"]),
+  type: z.enum(["assignment", "study", "project", "exam", "meeting", "sleep", "gym", "movie", "travel"]),
   dueDate: z.date({ required_error: "Due date is required" }),
   priority: z.enum(["low", "medium", "high"]),
   estimatedHours: z.number().min(0.5, "Minimum 0.5 hours").max(24, "Maximum 24 hours"),
+  recurrence: z.enum(["none", "daily", "weekly", "monthly"]).optional(),
+  category: z.enum(["work", "personal"]).optional(),
 });
 
 type EventFormData = z.infer<typeof eventSchema>;
@@ -64,6 +66,10 @@ const taskTemplates: Record<string, SubTask[]> = {
     { title: "Actual Meeting", duration: 1, order: 3 },
     { title: "Follow-up Actions", duration: 0.5, order: 4 },
   ],
+  sleep: [],
+  gym: [],
+  movie: [],
+  travel: [],
 };
 
 interface AddEventDialogProps {
@@ -165,6 +171,10 @@ export const AddEventDialog = ({ open, onOpenChange, onAddEvent }: AddEventDialo
                   <SelectItem value="project">🚀 Project</SelectItem>
                   <SelectItem value="exam">📖 Exam Prep</SelectItem>
                   <SelectItem value="meeting">👥 Meeting</SelectItem>
+                  <SelectItem value="sleep">😴 Sleep</SelectItem>
+                  <SelectItem value="gym">💪 Gym</SelectItem>
+                  <SelectItem value="movie">🎬 Movie</SelectItem>
+                  <SelectItem value="travel">✈️ Travel</SelectItem>
                 </SelectContent>
               </Select>
               {errors.type && (
@@ -238,17 +248,43 @@ export const AddEventDialog = ({ open, onOpenChange, onAddEvent }: AddEventDialo
                 min="0.5"
                 max="24"
                 value={formData.estimatedHours || ""}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  setFormData({ ...formData, estimatedHours: value });
-                  setErrors({ ...errors, estimatedHours: "" });
-                }}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    estimatedHours: parseFloat(e.target.value),
+                  })
+                }
                 className={errors.estimatedHours ? "border-destructive" : ""}
               />
               {errors.estimatedHours && (
                 <p className="text-sm text-destructive">{errors.estimatedHours}</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="recurrence">Repeat</Label>
+            <Select
+              value={formData.recurrence || "none"}
+              onValueChange={(value) =>
+                setFormData({ ...formData, recurrence: value as EventFormData["recurrence"] })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">🚫 None</SelectItem>
+                <SelectItem value="daily">📅 Daily</SelectItem>
+                <SelectItem value="weekly">📆 Weekly</SelectItem>
+                <SelectItem value="monthly">🗓️ Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+            {formData.recurrence && formData.recurrence !== "none" && (
+              <p className="text-xs text-muted-foreground mt-1">
+                This event will repeat {formData.recurrence}
+              </p>
+            )}
           </div>
 
           {showPreview && formData.type && (

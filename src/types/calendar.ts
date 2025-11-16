@@ -6,6 +6,13 @@ export interface Task {
   stress: "low" | "medium" | "high";
   type: string;
   dueDate?: Date;
+  recurrence?: {
+    frequency: "daily" | "weekly" | "monthly";
+    endDate?: Date;
+  };
+  parentTaskId?: string;
+  parentTaskTitle?: string;
+  category?: "work" | "personal";
 }
 
 export interface StressMetrics {
@@ -14,6 +21,12 @@ export interface StressMetrics {
   dayIntensity: number;
   deadlinePressure: number;
   recommendations: string[];
+  workLifeBalance?: {
+    workHours: number;
+    personalHours: number;
+    balanceScore: number;
+    suggestion: string;
+  };
 }
 
 export interface RescheduleWarning {
