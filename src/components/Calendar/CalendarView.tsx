@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -111,9 +111,8 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
 
           <div className="grid grid-cols-8">
             {hours.map((hour) => (
-              <>
+              <React.Fragment key={`hour-row-${hour}`}>
                 <div
-                  key={`hour-${hour}`}
                   className="p-2 text-xs text-muted-foreground border-r border-b border-border text-right"
                 >
                   {format(new Date().setHours(hour, 0, 0, 0), "h a")}
@@ -123,21 +122,20 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
                   return (
                     <div
                       key={`${day.toISOString()}-${hour}`}
-                      className={`relative min-h-16 p-1 border-r border-b border-border last:border-r-0 transition-colors overflow-visible ${
+                      className={`relative min-h-16 p-1 border-r border-b border-border last:border-r-0 transition-colors ${
                         isDragOverSlot(day, hour)
                           ? "bg-primary/10 border-primary"
                           : "hover:bg-muted/50"
                       }`}
                       onDragOver={(e) => handleDragOver(e, day, hour)}
                       onDrop={(e) => handleDrop(e, day, hour)}
-                      style={{ overflow: 'visible' }}
                     >
                       {dayTasks.map((task) => {
                         // Only render the task in the slot where it starts
                         if (!isTaskStart(task, hour)) return null;
                         
-                        // Calculate height: 64px per hour minus padding
-                        const taskHeight = task.duration * 64 - 8;
+                        // Calculate height: 64px per hour (this will span across grid cells)
+                        const taskHeight = task.duration * 64;
                         
                         return (
                           <div
@@ -147,18 +145,22 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
                             onDragEnd={handleDragEnd}
                             onClick={() => onTaskClick?.(task)}
                             style={{ 
-                              height: `${taskHeight}px`,
+                              position: 'absolute',
+                              top: '4px',
+                              left: '4px',
+                              right: '4px',
+                              height: `${taskHeight - 8}px`,
                               zIndex: 10
                             }}
-                            className={`group w-full text-left p-2 rounded-md text-xs font-medium border transition-all cursor-pointer overflow-hidden ${getStressColor(
+                            className={`group text-left p-2 rounded-md text-xs font-medium border transition-all cursor-pointer ${getStressColor(
                               task.stress
                             )} ${
                               draggedTask?.id === task.id
                                 ? "opacity-50 scale-95"
-                                : "hover:scale-105 hover:shadow-md animate-fade-in"
+                                : "hover:scale-[1.02] hover:shadow-lg animate-fade-in"
                             }`}
                           >
-                            <div className="flex items-start gap-1 h-full">
+                            <div className="flex items-start gap-1">
                               {onTasksChange && (
                                 <GripVertical className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-move" />
                               )}
@@ -183,7 +185,7 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
                     </div>
                   );
                 })}
-              </>
+              </React.Fragment>
             ))}
           </div>
         </div>
