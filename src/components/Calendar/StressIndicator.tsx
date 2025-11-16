@@ -1,17 +1,21 @@
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Brain, TrendingDown, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Brain, TrendingDown, TrendingUp, AlertTriangle, Calendar, Target } from "lucide-react";
+import { StressMetrics } from "@/types/calendar";
 
 interface StressIndicatorProps {
   score: number;
   totalTasks: number;
   completedTasks: number;
+  metrics?: StressMetrics;
 }
 
 export const StressIndicator = ({
   score,
   totalTasks,
   completedTasks,
+  metrics,
 }: StressIndicatorProps) => {
   const getStressLevel = () => {
     if (score <= 30) return { label: "Low Stress", color: "text-success" };
@@ -22,6 +26,18 @@ export const StressIndicator = ({
 
   const stressLevel = getStressLevel();
   const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  const getMetricColor = (value: number) => {
+    if (value <= 30) return "text-success";
+    if (value <= 60) return "text-warning";
+    return "text-destructive";
+  };
+
+  const getMetricBadge = (value: number) => {
+    if (value <= 30) return { variant: "secondary" as const, label: "Good" };
+    if (value <= 60) return { variant: "default" as const, label: "Moderate" };
+    return { variant: "destructive" as const, label: "High" };
+  };
 
   return (
     <Card className="p-6 shadow-medium">
@@ -74,6 +90,87 @@ export const StressIndicator = ({
             {completionRate.toFixed(0)}%
           </div>
         </div>
+
+        {metrics && (
+          <div className="space-y-3 pt-4 border-t border-border">
+            <h4 className="text-sm font-semibold text-foreground">Detailed Metrics</h4>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="p-3 bg-background/50">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Busy Level</span>
+                  </div>
+                  <Badge {...getMetricBadge(metrics.busyScore)}>
+                    {getMetricBadge(metrics.busyScore).label}
+                  </Badge>
+                </div>
+                <p className={`text-lg font-bold ${getMetricColor(metrics.busyScore)}`}>
+                  {metrics.busyScore.toFixed(0)}%
+                </p>
+              </Card>
+
+              <Card className="p-3 bg-background/50">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Procrastination</span>
+                  </div>
+                  <Badge {...getMetricBadge(metrics.procrastinationRisk)}>
+                    {getMetricBadge(metrics.procrastinationRisk).label}
+                  </Badge>
+                </div>
+                <p className={`text-lg font-bold ${getMetricColor(metrics.procrastinationRisk)}`}>
+                  {metrics.procrastinationRisk.toFixed(0)}%
+                </p>
+              </Card>
+
+              <Card className="p-3 bg-background/50">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Day Intensity</span>
+                  </div>
+                  <Badge {...getMetricBadge(metrics.dayIntensity)}>
+                    {getMetricBadge(metrics.dayIntensity).label}
+                  </Badge>
+                </div>
+                <p className={`text-lg font-bold ${getMetricColor(metrics.dayIntensity)}`}>
+                  {metrics.dayIntensity.toFixed(0)}%
+                </p>
+              </Card>
+
+              <Card className="p-3 bg-background/50">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1">
+                    <Target className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Deadline Pressure</span>
+                  </div>
+                  <Badge {...getMetricBadge(metrics.deadlinePressure)}>
+                    {getMetricBadge(metrics.deadlinePressure).label}
+                  </Badge>
+                </div>
+                <p className={`text-lg font-bold ${getMetricColor(metrics.deadlinePressure)}`}>
+                  {metrics.deadlinePressure.toFixed(0)}%
+                </p>
+              </Card>
+            </div>
+
+            {metrics.recommendations.length > 0 && (
+              <div className="pt-2">
+                <h5 className="text-xs font-medium text-muted-foreground mb-2">Recommendations</h5>
+                <div className="space-y-1">
+                  {metrics.recommendations.map((rec, idx) => (
+                    <p key={idx} className="text-xs text-foreground bg-accent/50 p-2 rounded">
+                      {rec}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
