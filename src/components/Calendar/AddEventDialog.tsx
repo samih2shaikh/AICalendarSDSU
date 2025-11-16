@@ -82,6 +82,7 @@ export const AddEventDialog = ({ open, onOpenChange, onAddEvent }: AddEventDialo
   const [formData, setFormData] = useState<Partial<EventFormData>>({
     priority: "medium",
     estimatedHours: 5,
+    recurrence: "none",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
@@ -97,7 +98,7 @@ export const AddEventDialog = ({ open, onOpenChange, onAddEvent }: AddEventDialo
       });
       
       // Reset form
-      setFormData({ priority: "medium", estimatedHours: 5 });
+      setFormData({ priority: "medium", estimatedHours: 5, recurrence: "none" });
       setErrors({});
       setShowPreview(false);
       onOpenChange(false);
@@ -292,30 +293,43 @@ export const AddEventDialog = ({ open, onOpenChange, onAddEvent }: AddEventDialo
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="h-4 w-4 text-primary" />
                 <h4 className="font-semibold text-foreground">
-                  AI Task Breakdown Preview
+                  {getSubtaskPreview().length > 0 ? "AI Task Breakdown Preview" : "Event Preview"}
                 </h4>
               </div>
-              <p className="text-sm text-muted-foreground mb-3">
-                This event will be automatically divided into the following subtasks:
-              </p>
-              <div className="space-y-2">
-                {getSubtaskPreview().map((subtask, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-2 bg-card rounded border border-border"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded">
-                        {subtask.order}
-                      </span>
-                      <span className="text-sm text-foreground">{subtask.title}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      ~{subtask.duration}h
-                    </span>
+              {getSubtaskPreview().length > 0 ? (
+                <>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    This event will be automatically divided into the following subtasks:
+                  </p>
+                  <div className="space-y-2">
+                    {getSubtaskPreview().map((subtask, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-2 bg-card rounded border border-border"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded">
+                            {subtask.order}
+                          </span>
+                          <span className="text-sm text-foreground">{subtask.title}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          ~{subtask.duration}h
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  This personal event will be added as a single {formData.estimatedHours}-hour block to your calendar.
+                  {formData.recurrence && formData.recurrence !== "none" && (
+                    <span className="block mt-2 text-primary font-medium">
+                      ✨ Will repeat {formData.recurrence}
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
           )}
         </div>

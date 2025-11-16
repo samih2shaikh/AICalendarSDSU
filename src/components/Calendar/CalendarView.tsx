@@ -32,8 +32,14 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
   const getTasksForDateTime = (day: Date, hour: number) => {
     return tasks.filter((task) => {
       const taskHour = task.date.getHours();
-      return isSameDay(task.date, day) && taskHour === hour;
+      const taskEndHour = taskHour + task.duration;
+      // Task should appear in this slot if it starts or spans through this hour
+      return isSameDay(task.date, day) && hour >= taskHour && hour < taskEndHour;
     });
+  };
+
+  const isTaskStart = (task: Task, hour: number) => {
+    return task.date.getHours() === hour;
   };
 
   const getStressColor = (stress: string) => {
@@ -125,42 +131,50 @@ export const CalendarView = ({ tasks, onTaskClick, onTasksChange }: CalendarView
                       onDragOver={(e) => handleDragOver(e, day, hour)}
                       onDrop={(e) => handleDrop(e, day, hour)}
                     >
-                      {dayTasks.map((task) => (
-                        <div
-                          key={task.id}
-                          draggable={!!onTasksChange}
-                          onDragStart={() => handleDragStart(task)}
-                          onDragEnd={handleDragEnd}
-                          onClick={() => onTaskClick?.(task)}
-                          className={`group w-full text-left p-2 rounded-md text-xs font-medium mb-1 border transition-all cursor-move ${getStressColor(
-                            task.stress
-                          )} ${
-                            draggedTask?.id === task.id
-                              ? "opacity-50 scale-95"
-                              : "hover:scale-105 hover:shadow-md animate-fade-in"
-                          }`}
-                        >
-                          <div className="flex items-start gap-1">
-                            {onTasksChange && (
-                              <GripVertical className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold truncate">
-                                {task.title}
-                              </div>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] px-1 py-0"
-                                >
-                                  {task.duration}h
-                                </Badge>
-                                <span className="text-xs opacity-75">{task.type}</span>
+                      {dayTasks.map((task) => {
+                        // Only render the task in the slot where it starts
+                        if (!isTaskStart(task, hour)) return null;
+                        
+                        const taskHeight = task.duration * 64; // 64px = min-h-16
+                        
+                        return (
+                          <div
+                            key={task.id}
+                            draggable={!!onTasksChange}
+                            onDragStart={() => handleDragStart(task)}
+                            onDragEnd={handleDragEnd}
+                            onClick={() => onTaskClick?.(task)}
+                            style={{ minHeight: `${taskHeight}px` }}
+                            className={`group w-full text-left p-2 rounded-md text-xs font-medium mb-1 border transition-all cursor-pointer ${getStressColor(
+                              task.stress
+                            )} ${
+                              draggedTask?.id === task.id
+                                ? "opacity-50 scale-95"
+                                : "hover:scale-105 hover:shadow-md animate-fade-in"
+                            }`}
+                          >
+                            <div className="flex items-start gap-1">
+                              {onTasksChange && (
+                                <GripVertical className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-move" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold truncate">
+                                  {task.title}
+                                </div>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10px] px-1 py-0"
+                                  >
+                                    {task.duration}h
+                                  </Badge>
+                                  <span className="text-xs opacity-75">{task.type}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })}
