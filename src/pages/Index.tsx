@@ -5,6 +5,8 @@ import { ChatInterface } from "@/components/Chat/ChatInterface";
 import { OnboardingFlow, UserPreferences } from "@/components/Onboarding/OnboardingFlow";
 import { AddEventDialog } from "@/components/Calendar/AddEventDialog";
 import { ManageTasksDialog } from "@/components/Calendar/ManageTasksDialog";
+import { TaskDetailsDialog } from "@/components/Calendar/TaskDetailsDialog";
+import { UpcomingTasks } from "@/components/Calendar/UpcomingTasks";
 import { Button } from "@/components/ui/button";
 import { Calendar, Settings, Plus, List } from "lucide-react";
 import { addDays, addHours, setHours } from "date-fns";
@@ -63,6 +65,8 @@ const Index = () => {
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [showManageTasks, setShowManageTasks] = useState(false);
   const [stressMetrics, setStressMetrics] = useState<StressMetrics | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
 
   useEffect(() => {
     // Check if user has completed onboarding
@@ -80,6 +84,12 @@ const Index = () => {
       if (!preferences) return;
       
       try {
+        // Calculate work-life balance
+        const workTasks = tasks.filter(t => t.category === "work");
+        const personalTasks = tasks.filter(t => t.category === "personal");
+        const workHours = workTasks.reduce((sum, t) => sum + t.duration, 0);
+        const personalHours = personalTasks.reduce((sum, t) => sum + t.duration, 0);
+        
         const { data, error } = await supabase.functions.invoke("analyze-schedule", {
           body: { 
             tasks: tasks.map(t => ({
@@ -87,7 +97,15 @@ const Index = () => {
               date: t.date.toISOString(),
               dueDate: t.dueDate?.toISOString()
             })), 
-            preferences 
+            preferences,
+            workLifeBalance: {
+              workHours,
+              personalHours,
+              balanceScore: personalHours > 0 ? Math.min(100, (personalHours / workHours) * 100) : 0,
+              suggestion: personalHours < workHours * 0.3 
+                ? "Consider adding more personal time to maintain balance"
+                : "Good work-life balance!"
+            }
           }
         });
 
@@ -127,6 +145,12 @@ const Index = () => {
       return "low";
     };
 
+    // Determine category based on event type
+    const getCategory = (type: string): "work" | "personal" => {
+      const personalTypes = ["sleep", "gym", "movie", "travel"];
+      return personalTypes.includes(type) ? "personal" : "work";
+    };
+
     // Find available time slots based on user preferences
     const findNextAvailableSlot = (startDate: Date, durationHours: number) => {
       // Start from tomorrow at 9 AM
@@ -157,28 +181,58 @@ const Index = () => {
       return currentSlot;
     };
 
-    // Create tasks from subtasks
-    const newTasks = subtasks.map((subtask, index) => {
-      const taskDate = findNextAvailableSlot(
-        index === 0 ? new Date() : tasks[tasks.length - 1]?.date || new Date(),
-        subtask.duration
-      );
-
-      return {
-        id: `${Date.now()}-${index}`,
-        title: `${event.title}: ${subtask.title}`,
+    // Create tasks from subtasks (or single task for personal events)
+    const category = event.category || getCategory(event.type);
+    const hasSubtasks = subtasks.length > 0;
+    
+    if (!hasSubtasks) {
+      // For personal events without subtasks, create a single task
+      const taskDate = findNextAvailableSlot(new Date(), event.estimatedHours);
+      const newTask = {
+        id: `${Date.now()}`,
+        title: event.title,
         date: taskDate,
-        duration: subtask.duration,
+        duration: event.estimatedHours,
         stress: getStressLevel(event.priority),
         type: event.type.charAt(0).toUpperCase() + event.type.slice(1),
+        dueDate: event.dueDate,
+        category,
+        recurrence: event.recurrence && event.recurrence !== "none" 
+          ? { frequency: event.recurrence as "daily" | "weekly" | "monthly" }
+          : undefined,
       };
-    });
+      setTasks([...tasks, newTask]);
+      toast.success("Event scheduled!", {
+        description: `"${event.title}" has been added to your calendar.`,
+      });
+    } else {
+      // For work events with subtasks
+      const newTasks = subtasks.map((subtask, index) => {
+        const taskDate = findNextAvailableSlot(
+          index === 0 ? new Date() : tasks[tasks.length - 1]?.date || new Date(),
+          subtask.duration
+        );
 
-    setTasks([...tasks, ...newTasks]);
-    
-    toast.success("Tasks scheduled!", {
-      description: `${newTasks.length} subtasks have been intelligently scheduled based on your calendar availability.`,
-    });
+        return {
+          id: `${Date.now()}-${index}`,
+          title: `${event.title}: ${subtask.title}`,
+          date: taskDate,
+          duration: subtask.duration,
+          stress: getStressLevel(event.priority),
+          type: event.type.charAt(0).toUpperCase() + event.type.slice(1),
+          dueDate: event.dueDate,
+          category,
+          parentTaskId: `${Date.now()}`,
+          parentTaskTitle: event.title,
+        };
+      });
+
+      setTasks([...tasks, ...newTasks]);
+      
+      toast.success("Tasks scheduled!", {
+        description: `${newTasks.length} subtasks have been intelligently scheduled based on your calendar availability.`,
+      });
+    }
   };
 
   const handleBulkReschedule = (taskIds: string[], newDate: Date) => {
@@ -195,11 +249,22 @@ const Index = () => {
     toast.success(`Rescheduled ${taskIds.length} task(s) successfully!`);
   };
 
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setShowTaskDetails(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {showOnboarding && (
         <OnboardingFlow onComplete={handleOnboardingComplete} />
       )}
+
+      <TaskDetailsDialog
+        task={selectedTask}
+        open={showTaskDetails}
+        onOpenChange={setShowTaskDetails}
+      />
 
       <AddEventDialog
         open={showAddEvent}
@@ -261,11 +326,15 @@ const Index = () => {
           <div className="lg:col-span-2 flex flex-col">
             <CalendarView
               tasks={tasks}
-              onTaskClick={(task) => console.log("Task clicked:", task)}
+              onTaskClick={handleTaskClick}
               onTasksChange={setTasks}
             />
           </div>
           <div className="flex flex-col gap-4">
+            <UpcomingTasks
+              tasks={tasks}
+              onTaskClick={handleTaskClick}
+            />
             <StressIndicator
               score={calculateStressScore()}
               totalTasks={tasks.length}
