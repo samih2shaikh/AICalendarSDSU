@@ -4,10 +4,13 @@ import { StressIndicator } from "@/components/Calendar/StressIndicator";
 import { ChatInterface } from "@/components/Chat/ChatInterface";
 import { OnboardingFlow, UserPreferences } from "@/components/Onboarding/OnboardingFlow";
 import { AddEventDialog } from "@/components/Calendar/AddEventDialog";
+import { ManageTasksDialog } from "@/components/Calendar/ManageTasksDialog";
 import { Button } from "@/components/ui/button";
-import { Calendar, Settings, Plus } from "lucide-react";
+import { Calendar, Settings, Plus, List } from "lucide-react";
 import { addDays, addHours, setHours } from "date-fns";
 import { toast } from "sonner";
+import { Task, StressMetrics } from "@/types/calendar";
+import { supabase } from "@/integrations/supabase/client";
 
 // Sample data for demonstration
 const sampleTasks = [
@@ -56,8 +59,10 @@ const sampleTasks = [
 const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
-  const [tasks, setTasks] = useState(sampleTasks);
+  const [tasks, setTasks] = useState<Task[]>(sampleTasks);
   const [showAddEvent, setShowAddEvent] = useState(false);
+  const [showManageTasks, setShowManageTasks] = useState(false);
+  const [stressMetrics, setStressMetrics] = useState<StressMetrics | null>(null);
 
   useEffect(() => {
     // Check if user has completed onboarding
@@ -68,6 +73,33 @@ const Index = () => {
       setPreferences(JSON.parse(savedPreferences));
     }
   }, []);
+
+  useEffect(() => {
+    // Fetch stress metrics when tasks or preferences change
+    const fetchMetrics = async () => {
+      if (!preferences) return;
+      
+      try {
+        const { data, error } = await supabase.functions.invoke("analyze-schedule", {
+          body: { 
+            tasks: tasks.map(t => ({
+              ...t,
+              date: t.date.toISOString(),
+              dueDate: t.dueDate?.toISOString()
+            })), 
+            preferences 
+          }
+        });
+
+        if (error) throw error;
+        setStressMetrics(data);
+      } catch (error) {
+        console.error("Error fetching metrics:", error);
+      }
+    };
+
+    fetchMetrics();
+  }, [tasks, preferences]);
 
   const handleOnboardingComplete = (userPreferences: UserPreferences) => {
     setPreferences(userPreferences);
@@ -149,6 +181,20 @@ const Index = () => {
     });
   };
 
+  const handleBulkReschedule = (taskIds: string[], newDate: Date) => {
+    const updatedTasks = tasks.map((task) => {
+      if (taskIds.includes(task.id)) {
+        const newTaskDate = new Date(newDate);
+        newTaskDate.setHours(task.date.getHours(), task.date.getMinutes());
+        return { ...task, date: newTaskDate };
+      }
+      return task;
+    });
+    
+    setTasks(updatedTasks);
+    toast.success(`Rescheduled ${taskIds.length} task(s) successfully!`);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {showOnboarding && (
@@ -159,6 +205,13 @@ const Index = () => {
         open={showAddEvent}
         onOpenChange={setShowAddEvent}
         onAddEvent={handleAddEvent}
+      />
+
+      <ManageTasksDialog
+        open={showManageTasks}
+        onOpenChange={setShowManageTasks}
+        tasks={tasks}
+        onReschedule={handleBulkReschedule}
       />
 
       <header className="border-b border-border bg-card shadow-soft">
@@ -179,18 +232,24 @@ const Index = () => {
             </div>
             <div className="flex gap-2">
               <Button
-                onClick={() => setShowAddEvent(true)}
-                className="gap-2"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowOnboarding(true)}
               >
-                <Plus className="h-4 w-4" />
-                Add Event
+                <Settings className="h-4 w-4 mr-2" />
+                Preferences
               </Button>
               <Button
                 variant="outline"
-                size="icon"
-                onClick={() => setShowOnboarding(true)}
+                size="sm"
+                onClick={() => setShowManageTasks(true)}
               >
-                <Settings className="h-4 w-4" />
+                <List className="h-4 w-4 mr-2" />
+                Manage Tasks
+              </Button>
+              <Button size="sm" onClick={() => setShowAddEvent(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Event
               </Button>
             </div>
           </div>
@@ -210,9 +269,11 @@ const Index = () => {
               score={calculateStressScore()}
               totalTasks={tasks.length}
               completedTasks={0}
+              metrics={stressMetrics || undefined}
             />
             <div className="flex-1 min-h-0">
               <ChatInterface
+                scheduleContext={{ tasks, preferences }}
                 onSendMessage={(message) =>
                   console.log("Message sent:", message)
                 }

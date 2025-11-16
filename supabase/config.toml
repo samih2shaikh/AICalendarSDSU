@@ -1,0 +1,7 @@
+project_id = "pwjzfwjzfyftigabbuue"
+
+[functions.chat]
+verify_jwt = false
+
+[functions.analyze-schedule]
+verify_jwt = false
