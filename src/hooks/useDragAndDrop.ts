@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Task } from "@/types/calendar";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 export const useDragAndDrop = (tasks: Task[], onTasksChange: (tasks: Task[]) => void) => {
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
@@ -26,6 +28,17 @@ export const useDragAndDrop = (tasks: Task[], onTasksChange: (tasks: Task[]) => 
 
     const newDate = new Date(date);
     newDate.setHours(hour, 0, 0, 0);
+
+    // Check for deadline warning
+    if (draggedTask.dueDate) {
+      const dueDate = new Date(draggedTask.dueDate);
+      if (newDate > dueDate) {
+        toast.error("⚠️ Deadline Warning!", {
+          description: `Moving "${draggedTask.title}" to ${format(newDate, "MMM d 'at' h:mm a")} is past its deadline of ${format(dueDate, "MMM d, yyyy")}. Consider rescheduling earlier!`,
+          duration: 5000,
+        });
+      }
+    }
 
     const updatedTasks = tasks.map((task) =>
       task.id === draggedTask.id
